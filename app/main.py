@@ -357,20 +357,10 @@ async def viewer(target_id: str) -> RedirectResponse:
     )
 
 
-@app.websocket("/api/vnc/{target_id}")
-async def vnc_proxy(websocket: WebSocket, target_id: str) -> None:
-    if not verify_basic_auth(websocket.headers.get("authorization")):
-        await websocket.close(code=1008)
-        return
-
-    await websocket.accept()
-    target = await store.get_target(target_id)
-    if target is None:
-        await websocket.close(code=1008, reason="Unknown target")
-        return
-
+async def _proxy_vnc(websocket: WebSocket, host: str, port: int) -> None:
+    # Relay an already-accepted websocket to a TCP host:port (the VNC server).
     try:
-        reader, writer = await asyncio.open_connection(target.host, target.port)
+        reader, writer = await asyncio.open_connection(host, port)
     except OSError:
         await websocket.close(code=1011, reason="Could not connect to target")
         return
@@ -414,3 +404,45 @@ async def vnc_proxy(websocket: WebSocket, target_id: str) -> None:
         if websocket.application_state != WebSocketState.DISCONNECTED:
             with suppress(Exception):
                 await websocket.close()
+
+
+@app.websocket("/api/vnc/{target_id}")
+async def vnc_proxy(websocket: WebSocket, target_id: str) -> None:
+    if not verify_basic_auth(websocket.headers.get("authorization")):
+        await websocket.close(code=1008)
+        return
+
+    await websocket.accept()
+    target = await store.get_target(target_id)
+    if target is None:
+        await websocket.close(code=1008, reason="Unknown target")
+        return
+
+    await _proxy_vnc(websocket, target.host, target.port)
+
+
+@app.websocket("/api/vnc")
+async def vnc_proxy_adhoc(websocket: WebSocket) -> None:
+    # Temporary connection: host and port come from the query string and are
+    # never persisted. Gated by the same auth as saved targets.
+    if not verify_basic_auth(websocket.headers.get("authorization")):
+        await websocket.close(code=1008)
+        return
+
+    host = (websocket.query_params.get("host") or "").strip()
+    port_raw = websocket.query_params.get("port") or ""
+
+    await websocket.accept()
+    if not host or any(char.isspace() for char in host):
+        await websocket.close(code=1008, reason="Invalid host")
+        return
+    try:
+        port = int(port_raw)
+    except ValueError:
+        await websocket.close(code=1008, reason="Invalid port")
+        return
+    if not 1 <= port <= 65535:
+        await websocket.close(code=1008, reason="Invalid port")
+        return
+
+    await _proxy_vnc(websocket, host, port)

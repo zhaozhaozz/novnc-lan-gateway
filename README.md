@@ -16,6 +16,8 @@ http://<docker-host-ip>:6080
 
 Add each server with its LAN host or IP, VNC port, and optional VNC password. Port `5900` is the default for display `:0`. If you do not save a password for a target, noVNC will prompt for it in the browser.
 
+Use **Connect without saving** in the form to open a one-off session with the entered host, port, and optional password without persisting a target.
+
 ## Configuration
 
 The Compose file stores targets in the `novnc-lan-gateway-data` Docker volume at `/data/targets.json`.

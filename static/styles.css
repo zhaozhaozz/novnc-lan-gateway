@@ -8,6 +8,8 @@
   --line: #d8e1de;
   --accent: #176b5b;
   --accent-strong: #0f4f43;
+  --accent-2: #2f6f9f;
+  --accent-2-strong: #285f88;
   --danger: #9f2f2f;
   --shadow: 0 16px 40px rgb(25 38 35 / 10%);
 }
@@ -84,6 +86,11 @@ h1 {
 h2 {
   margin-bottom: 0;
   font-size: 1.05rem;
+}
+
+.form-actions {
+  display: grid;
+  gap: 10px;
 }
 
 .layout {
@@ -169,7 +176,8 @@ textarea:focus {
 .primary,
 .secondary,
 .ghost,
-.danger {
+.danger,
+.alt {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -194,6 +202,16 @@ textarea:focus {
 .secondary {
   background: var(--accent);
   color: #ffffff;
+}
+
+.alt {
+  min-height: 44px;
+  background: var(--accent-2);
+  color: #ffffff;
+}
+
+.alt:hover {
+  background: var(--accent-2-strong);
 }
 
 .ghost {

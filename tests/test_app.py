@@ -144,6 +144,39 @@ def test_websocket_proxy_relays_bytes(client: TestClient):
     assert received == [b"client-hello"]
 
 
+def test_websocket_adhoc_relays_bytes(client: TestClient):
+    received = []
+
+    class Handler(socketserver.BaseRequestHandler):
+        def handle(self):
+            received.append(self.request.recv(1024))
+            self.request.sendall(b"server-hello")
+            self.request.recv(1024)
+
+    server = socketserver.TCPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        port = server.server_address[1]
+        # No target is created: host/port come straight from the query string.
+        with client.websocket_connect(f"/api/vnc?host=127.0.0.1&port={port}") as ws:
+            ws.send_bytes(b"client-hello")
+            assert ws.receive_bytes() == b"server-hello"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert received == [b"client-hello"]
+    assert client.get("/api/targets").json() == []  # nothing was persisted
+
+
+def test_websocket_adhoc_rejects_bad_port(client: TestClient):
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect("/api/vnc?host=127.0.0.1&port=not-a-port") as ws:
+            ws.receive_bytes()
+
+
 def test_websocket_rejected_without_auth(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "store", main.TargetStore(tmp_path / "targets.json"))
     monkeypatch.setattr(main.settings, "app_username", "admin")

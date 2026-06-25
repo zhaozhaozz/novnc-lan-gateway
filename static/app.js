@@ -13,6 +13,7 @@ const targetsContainer = document.querySelector("#targets");
 const refreshButton = document.querySelector("#refresh-targets");
 const cancelEditButton = document.querySelector("#cancel-edit");
 const authWarning = document.querySelector("#auth-warning");
+const tempConnectButton = document.querySelector("#temp-connect");
 
 let targets = [];
 
@@ -93,6 +94,19 @@ function editTarget(target) {
 
 function openViewer(target) {
   window.open(`/viewer/${encodeURIComponent(target.id)}`, "_blank", "noopener");
+}
+
+// Open a one-off noVNC session for an unsaved host:port. host/port go to the
+// ad-hoc proxy via the path param; the password (if any) stays in the URL
+// fragment, which is never sent to the server.
+function openTemporaryViewer(host, port, password) {
+  const wsPath = `/api/vnc?host=${encodeURIComponent(host)}&port=${encodeURIComponent(port)}`;
+  const query = new URLSearchParams({ autoconnect: "1", resize: "scale", path: wsPath });
+  let url = `/novnc/vnc.html?${query.toString()}`;
+  if (password) {
+    url += `#${new URLSearchParams({ password }).toString()}`;
+  }
+  window.open(url, "_blank", "noopener");
 }
 
 async function deleteTarget(target) {
@@ -232,6 +246,17 @@ async function checkAuthStatus() {
     // Leave the banner hidden if the config check cannot be reached.
   }
 }
+
+tempConnectButton.addEventListener("click", () => {
+  const host = targetHost.value.trim();
+  const port = Number(targetPort.value);
+  if (!host || !Number.isInteger(port) || port < 1 || port > 65535) {
+    setMessage("Enter a valid host and port to connect.", true);
+    return;
+  }
+  openTemporaryViewer(host, port, targetPassword.value);
+  setMessage(`Opening ${host}:${port}…`);
+});
 
 refreshButton.addEventListener("click", loadTargets);
 cancelEditButton.addEventListener("click", resetForm);
