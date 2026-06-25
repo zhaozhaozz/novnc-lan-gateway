@@ -1,0 +1,20 @@
+name: novnc-lan-gateway
+
+services:
+  novnc-lan-gateway:
+    build: .
+    container_name: novnc-lan-gateway
+    restart: unless-stopped
+    ports:
+      - "6080:6080"
+    environment:
+      VNC_TARGETS_FILE: /data/targets.json
+      NOVNC_ROOT: /usr/share/novnc
+      # Set both values to protect the portal with HTTP Basic auth.
+      # APP_USERNAME: admin
+      # APP_PASSWORD: change-me
+    volumes:
+      - novnc-lan-gateway-data:/data
+
+volumes:
+  novnc-lan-gateway-data:

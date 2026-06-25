@@ -1,0 +1,2 @@
+"""LAN VNC portal application."""
+
