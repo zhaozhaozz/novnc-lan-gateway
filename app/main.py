@@ -260,6 +260,17 @@ async def basic_auth_middleware(request: Request, call_next):
     )
 
 
+@app.middleware("http")
+async def revalidate_own_assets(request: Request, call_next):
+    response = await call_next(request)
+    # Our own HTML/JS/CSS change on every deploy. FastAPI sends no Cache-Control
+    # for them, so browsers heuristically cache and can serve a stale portal.
+    # Force revalidation (cheap, the ETag yields 304s when unchanged).
+    if request.url.path == "/" or request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 @app.get("/", include_in_schema=False)
 async def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
