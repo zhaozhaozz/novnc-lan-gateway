@@ -4,7 +4,10 @@ noVNC LAN Gateway runs a small web application and a noVNC frontend inside one c
 
 ## Quick start
 
+The noVNC front-end is vendored as a git submodule, so initialise it first (the image build fails if it is missing):
+
 ```bash
+git submodule update --init vendor/novnc
 docker compose up -d --build
 ```
 
@@ -48,7 +51,14 @@ uv pip install -r requirements-dev.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 6080
 ```
 
-Local development needs noVNC static files at `NOVNC_ROOT` for the viewer page. The Docker image installs Debian's `novnc` package automatically.
+Local development needs the noVNC static files at `NOVNC_ROOT` for the viewer page. noVNC is vendored as a git submodule (pinned to a release tag); it is a static front-end, so no build step is required. Initialise it once and point `NOVNC_ROOT` at it:
+
+```bash
+git submodule update --init vendor/novnc
+export NOVNC_ROOT="$PWD/vendor/novnc"
+```
+
+The Docker image copies this same submodule, so local runs and the image share the exact pinned commit; the build fails if the submodule is not initialised.
 
 Run tests:
 
