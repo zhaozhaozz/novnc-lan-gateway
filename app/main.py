@@ -1,9 +1,10 @@
 import asyncio
 import base64
 import json
+import logging
 import os
 import secrets
-from contextlib import suppress
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,8 @@ from starlette.websockets import WebSocketDisconnect, WebSocketState
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
+
+logger = logging.getLogger("novnc_gateway")
 
 
 class Settings:
@@ -109,6 +112,10 @@ class ProbeResult(BaseModel):
     message: str
 
 
+class AppConfig(BaseModel):
+    auth_enabled: bool
+
+
 class TargetStore:
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -188,7 +195,22 @@ class TargetStore:
 settings = Settings()
 store = TargetStore(settings.targets_file)
 
-app = FastAPI(title="noVNC LAN Gateway", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # The portal opens TCP connections to any host the container can reach, so an
+    # unauthenticated instance can be used as a port scanner / TCP tunnel. Warn
+    # loudly when it is left without HTTP Basic auth.
+    if not settings.auth_enabled:
+        logger.warning(
+            "HTTP Basic auth is disabled. Set APP_USERNAME and APP_PASSWORD to "
+            "protect the portal: anyone who can reach it can add targets and open "
+            "connections to any host the container can reach."
+        )
+    yield
+
+
+app = FastAPI(title="noVNC LAN Gateway", version="0.1.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.mount("/novnc", StaticFiles(directory=settings.novnc_root, html=True, check_dir=False), name="novnc")
 
@@ -248,6 +270,12 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/api/config", response_model=AppConfig)
+async def app_config() -> AppConfig:
+    # Lets the frontend warn when the portal is exposed without authentication.
+    return AppConfig(auth_enabled=settings.auth_enabled)
+
+
 @app.get("/api/targets", response_model=list[Target])
 async def list_targets() -> list[Target]:
     return [public_target(target) for target in await store.list_targets()]
@@ -280,19 +308,18 @@ async def probe_target(target_id: str) -> ProbeResult:
     if target is None:
         raise HTTPException(status_code=404, detail="Target not found")
     try:
-        reader, writer = await asyncio.wait_for(
+        _reader, writer = await asyncio.wait_for(
             asyncio.open_connection(target.host, target.port),
             timeout=3,
         )
-    except OSError as exc:
-        return ProbeResult(ok=False, message=str(exc))
+    # TimeoutError is an OSError subclass on 3.11+, so it must be caught first.
     except asyncio.TimeoutError:
         return ProbeResult(ok=False, message="Connection timed out")
+    except OSError as exc:
+        return ProbeResult(ok=False, message=str(exc))
     writer.close()
     with suppress(Exception):
         await writer.wait_closed()
-    with suppress(Exception):
-        reader.feed_eof()
     return ProbeResult(ok=True, message=f"Connected to {target.host}:{target.port}")
 
 

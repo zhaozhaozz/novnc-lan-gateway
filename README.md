@@ -34,6 +34,7 @@ Optional environment variables:
 - The container must be able to open TCP connections to every configured VNC server.
 - Docker bridge networking can usually reach LAN IP addresses. If your LAN DNS or routing is only available from the host network, use host networking on Linux and remove the `ports` mapping from Compose.
 - Saved VNC passwords are stored in the targets JSON file and are sent to the browser as a noVNC URL fragment only when opening a viewer. Use this on trusted LANs and protect the portal with `APP_USERNAME` and `APP_PASSWORD` if more than one person can reach it.
+- Without `APP_USERNAME`/`APP_PASSWORD` the portal runs unauthenticated and logs a warning at startup: anyone who can reach it can add targets and have the container open TCP connections to any host it can reach. Set both variables to close this.
 - Do not expose this portal directly to the internet.
 
 ## Local development

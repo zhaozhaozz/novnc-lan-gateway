@@ -4,6 +4,7 @@ import threading
 
 import pytest
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 import app.main as main
 
@@ -100,6 +101,67 @@ def test_probe_reachable_target(client: TestClient):
     finally:
         server.shutdown()
         server.server_close()
+
+
+def test_config_reports_auth_disabled(client: TestClient):
+    assert client.get("/api/config").json() == {"auth_enabled": False}
+
+
+def test_config_reports_auth_enabled(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "store", main.TargetStore(tmp_path / "targets.json"))
+    monkeypatch.setattr(main.settings, "app_username", "admin")
+    monkeypatch.setattr(main.settings, "app_password", "secret")
+
+    with TestClient(main.app) as test_client:
+        token = base64.b64encode(b"admin:secret").decode("ascii")
+        response = test_client.get("/api/config", headers={"Authorization": f"Basic {token}"})
+        assert response.json() == {"auth_enabled": True}
+
+
+def test_websocket_proxy_relays_bytes(client: TestClient):
+    received = []
+
+    class Handler(socketserver.BaseRequestHandler):
+        def handle(self):
+            received.append(self.request.recv(1024))
+            self.request.sendall(b"server-hello")
+            # Keep the connection open until the proxy closes it from its side.
+            self.request.recv(1024)
+
+    server = socketserver.TCPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        target = create_target(client, port=server.server_address[1])
+        with client.websocket_connect(f"/api/vnc/{target['id']}") as ws:
+            ws.send_bytes(b"client-hello")
+            assert ws.receive_bytes() == b"server-hello"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert received == [b"client-hello"]
+
+
+def test_websocket_rejected_without_auth(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "store", main.TargetStore(tmp_path / "targets.json"))
+    monkeypatch.setattr(main.settings, "app_username", "admin")
+    monkeypatch.setattr(main.settings, "app_password", "secret")
+
+    with TestClient(main.app) as test_client:
+        token = base64.b64encode(b"admin:secret").decode("ascii")
+        auth = {"Authorization": f"Basic {token}"}
+        response = test_client.post(
+            "/api/targets",
+            json={"name": "t", "host": "127.0.0.1", "port": 5900},
+            headers=auth,
+        )
+        target_id = response.json()["id"]
+
+        with pytest.raises(WebSocketDisconnect):
+            with test_client.websocket_connect(f"/api/vnc/{target_id}"):
+                pass
 
 
 def test_basic_auth_when_enabled(tmp_path, monkeypatch):

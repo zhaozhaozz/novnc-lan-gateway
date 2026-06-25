@@ -37,6 +37,23 @@ button {
   cursor: pointer;
 }
 
+.auth-warning {
+  padding: 12px 16px;
+  background: #fff4e0;
+  border-bottom: 1px solid #f0c277;
+  color: #8a5200;
+  text-align: center;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.auth-warning code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+  font-size: 0.85em;
+}
+
 .shell {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;

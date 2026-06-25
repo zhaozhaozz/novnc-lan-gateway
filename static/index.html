@@ -7,6 +7,10 @@
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
+    <div id="auth-warning" class="auth-warning hidden" role="alert">
+      ⚠ This portal is <strong>public</strong>: no login is required and anyone who can reach it can
+      add targets and open VNC sessions. Set <code>APP_USERNAME</code> and <code>APP_PASSWORD</code> to require a login.
+    </div>
     <main class="shell">
       <section class="masthead">
         <div>

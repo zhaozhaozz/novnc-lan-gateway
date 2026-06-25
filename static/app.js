@@ -12,6 +12,7 @@ const formMessage = document.querySelector("#form-message");
 const targetsContainer = document.querySelector("#targets");
 const refreshButton = document.querySelector("#refresh-targets");
 const cancelEditButton = document.querySelector("#cancel-edit");
+const authWarning = document.querySelector("#auth-warning");
 
 let targets = [];
 
@@ -223,7 +224,17 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+async function checkAuthStatus() {
+  try {
+    const config = await requestJson("/api/config");
+    authWarning.classList.toggle("hidden", config.auth_enabled);
+  } catch {
+    // Leave the banner hidden if the config check cannot be reached.
+  }
+}
+
 refreshButton.addEventListener("click", loadTargets);
 cancelEditButton.addEventListener("click", resetForm);
 
+checkAuthStatus();
 loadTargets();
