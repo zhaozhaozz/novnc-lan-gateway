@@ -2,6 +2,10 @@ name: novnc-lan-gateway
 
 services:
   novnc-lan-gateway:
+    # Default to the published image so `docker compose up -d` pulls it.
+    # `build:` is kept so `docker compose up -d --build` still builds locally
+    # and tags the result with this same name.
+    image: ghcr.io/zhaozhaozz/novnc-lan-gateway:latest
     build: .
     container_name: novnc-lan-gateway
     restart: unless-stopped
