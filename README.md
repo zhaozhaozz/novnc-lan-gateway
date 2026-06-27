@@ -4,6 +4,30 @@ noVNC LAN Gateway runs a small web application and a noVNC frontend inside one c
 
 ## Quick start
 
+You can run a prebuilt image or build from source.
+
+### Run the published image (recommended)
+
+Images are published to GitHub Container Registry on each version tag and already include the noVNC front-end, so no submodule init or local build is needed. The bundled `docker-compose.yml` references this image, so pull and start it:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Or run it directly with Docker:
+
+```bash
+docker run -d --name novnc-lan-gateway \
+  -p 6080:6080 \
+  -v novnc-lan-gateway-data:/data \
+  ghcr.io/zhaozhaozz/novnc-lan-gateway:latest
+```
+
+Replace `:latest` with a version to pin it, e.g. `:0.1.0`. If the package is private, run `docker login ghcr.io` first (or make it public in the repository's package settings).
+
+### Build from source
+
 The noVNC front-end is vendored as a git submodule, so initialise it first (the image build fails if it is missing):
 
 ```bash
